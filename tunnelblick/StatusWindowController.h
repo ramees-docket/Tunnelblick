@@ -79,6 +79,10 @@
     BOOL                       haveLoadedFromNib;
     
     id                         delegate;
+
+    // New (SwiftUI) interface only. Both stay nil when the classic interface is used.
+    id                         statusPanelModel;         // StatusPanelModel (Swift): the content of the window
+    NSTrackingArea           * statusPanelTrackingArea;  // Tracks mouseEntered/mouseExited for the window
 }
 
 -(id)         initWithDelegate:       (id)         theDelegate;
@@ -88,6 +92,8 @@
 -(IBAction)   connectButtonWasClicked: (id)        sender;
 
 -(IBAction)   disconnectButtonWasClicked: (id)     sender;
+
+-(IBAction)   closeButtonWasClicked:  (id)         sender;  // New interface only: the window's close ("x") button
 
 -(id)         delegate;
 

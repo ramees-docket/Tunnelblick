@@ -47,6 +47,7 @@
 #import "SystemAuth.h"
 #import "TunnelblickInfo.h"
 #import "TBOperationQueue.h"
+#import "TBSwiftUIBridge.h"
 #import "TBUserDefaults.h"
 #import "UIHelper.h"
 #import "VPNConnection.h"
@@ -1393,7 +1394,9 @@ TBPROPERTY(          NSMutableArray *,         messagesIfConnectionFails,       
 -(BOOL) checkForChangedIPAddress: (NSString *) beforeConnect andIPAddress: (NSString *) afterConnect {
 
     if (  [beforeConnect isEqualToString: afterConnect]  ) {
-        [self addToLog: [NSString stringWithFormat: @"This computer's apparent public IP address (%@) was unchanged after the connection was made", beforeConnect]];
+        NSString * unchangedLogLine = [NSString stringWithFormat: @"This computer's apparent public IP address (%@) was unchanged after the connection was made", beforeConnect];
+        [self addToLog: unchangedLogLine];
+        [TBSwiftUIBridge recordWarningOfKind: @"publicIpUnchanged" address: beforeConnect logLine: unchangedLogLine forDisplayName: [self displayName]];
         [self ipInfoNoChangeDialogBefore: beforeConnect];
         [self performSelectorOnMainThread: @selector(IPAddressChangeSucceeded:) withObject: @NO waitUntilDone: NO];
         return FALSE;
@@ -3948,16 +3951,22 @@ static pthread_mutex_t lastStateMutex = PTHREAD_MUTEX_INITIALIZER;
 					[self addToLog: [NSString stringWithFormat: @"DNS address %@ is being routed through the VPN", address]];
 				} else {
 					if (  [self isNotAPublicIPAddress: address]  ) {
-						[self addToLog: [NSString stringWithFormat: @"Warning: DNS server address %@ is not a public IP address and is not being routed through the VPN.\n\n", address]];
+						NSString * dnsLogLine = [NSString stringWithFormat: @"Warning: DNS server address %@ is not a public IP address and is not being routed through the VPN.", address];
+						[self addToLog: [dnsLogLine stringByAppendingString: @"\n\n"]];
+						[TBSwiftUIBridge recordWarningOfKind: @"dnsPrivateNotRoutedThroughVpn" address: address logLine: dnsLogLine forDisplayName: [self displayName]];
 						[message appendString: [NSString stringWithFormat:
 												NSLocalizedString(@"     • DNS server address %@ is not a public IP address and is not being routed through the VPN.\n\n", @"Window text"), address]];
 					} else {
 						if (  [knownPublicDnsServers containsObject: address]  ) {
-							[self addToLog: [NSString stringWithFormat: @"Warning: DNS server Address %@ is a known public DNS server but is not being routed through the VPN", address]];
+							NSString * dnsLogLine = [NSString stringWithFormat: @"Warning: DNS server Address %@ is a known public DNS server but is not being routed through the VPN", address];
+							[self addToLog: dnsLogLine];
+							[TBSwiftUIBridge recordWarningOfKind: @"dnsKnownPublicNotRoutedThroughVpn" address: address logLine: dnsLogLine forDisplayName: [self displayName]];
 							[message appendString: [NSString stringWithFormat:
 													NSLocalizedString(@"     • DNS server address %@ is a public DNS server known to Tunnelblick but is not being routed through the VPN.\n\n", @"Window text"), address]];
 						} else {
-							[self addToLog: [NSString stringWithFormat: @"Warning: DNS server address %@ is not a public DNS server known to Tunnelblick and is not being routed through the VPN", address]];
+							NSString * dnsLogLine = [NSString stringWithFormat: @"Warning: DNS server address %@ is not a public DNS server known to Tunnelblick and is not being routed through the VPN", address];
+							[self addToLog: dnsLogLine];
+							[TBSwiftUIBridge recordWarningOfKind: @"dnsUnknownNotRoutedThroughVpn" address: address logLine: dnsLogLine forDisplayName: [self displayName]];
 							[message appendString: [NSString stringWithFormat:
 													NSLocalizedString(@"     • DNS server address %@ is not a public DNS server known to Tunnelblick and is not being routed through the VPN.\n\n", @"Window text"), address]];
 						}
