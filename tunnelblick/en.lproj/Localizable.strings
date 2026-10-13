@@ -2855,3 +2855,15 @@
 
 /* Window text VPNService */
 "Your account status could not be verified:\n     %@." = "Your account status could not be verified:\n     %@.";
+
+/* Section title in the Preferences pane */
+"Screen lock" = "Screen lock";
+
+/* Toggle name */
+"Disconnect when the screen locks and stay disconnected" = "Disconnect when the screen locks and stay disconnected";
+
+/* Caption under the toggle */
+"Also stays disconnected after the computer wakes from sleep. Reconnect from the menu when you need the VPN." = "Also stays disconnected after the computer wakes from sleep. Reconnect from the menu when you need the VPN.";
+
+/* Log line */
+"Disconnecting because the screen was locked" = "Disconnecting because the screen was locked";

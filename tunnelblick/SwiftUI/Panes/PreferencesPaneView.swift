@@ -29,6 +29,7 @@ struct PreferencesPaneView: View {
                 keyboardAndLogSection(view)
                 warningsSection(view)
             }
+            screenLockSection()
             interfaceSection()
         }
         .onAppear {
@@ -113,6 +114,45 @@ struct PreferencesPaneView: View {
                     LegacyButton(button: resetButton)
                 }
             }
+        }
+    }
+
+    // MARK: Screen lock
+
+    private static let screenLockKey = "disconnectOnScreenLockAndDoNotReconnect"
+
+    private var disconnectsOnScreenLock: Bool {
+        gTbDefaults?.bool(forKey: Self.screenLockKey) ?? false
+    }
+
+    private var screenLockCanChange: Bool {
+        gTbDefaults?.canChangeValue(forKey: Self.screenLockKey) ?? false
+    }
+
+    @ViewBuilder
+    private func screenLockSection() -> some View {
+        PanesSection(L("Screen lock")) {
+            InsetRow(L("Disconnect when the screen locks and stay disconnected"),
+                     caption: L("Also stays disconnected after the computer wakes from sleep. Reconnect from the menu when you need the VPN."),
+                     isLast: true) {
+                HStack(spacing: 6) {
+                    if !screenLockCanChange {
+                        LockedBadge()
+                    }
+                    Toggle("", isOn: Binding(
+                        get: { disconnectsOnScreenLock },
+                        set: { newValue in
+                            guard newValue != disconnectsOnScreenLock else { return }
+                            PanesLegacy.setPreference(NSNumber(value: newValue), forKey: Self.screenLockKey)
+                            LegacyRefresh.shared.bump()
+                        }))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .disabled(!screenLockCanChange)
+                }
+            }
+            .opacity(screenLockCanChange ? 1 : 0.6)
         }
     }
 

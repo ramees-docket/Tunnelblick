@@ -113,7 +113,7 @@ private enum PanesIconSets {
     /// Same search order as -[MenuController loadMenuIconSet]: Deploy, Shared, then the app's Resources.
     static func directory(forIconSetNamed name: String) -> String? {
         var parents: [String] = []
-        if let deploy = gDeployPath {
+        if let deploy = gDeployPath as String?, !deploy.isEmpty {
             parents.append((deploy as NSString).appendingPathComponent("IconSets"))
         }
         parents.append("/Library/Application Support/Tunnelblick/Shared/IconSets")   // L_AS_T_SHARED/IconSets

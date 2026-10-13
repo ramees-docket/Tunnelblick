@@ -1006,6 +1006,7 @@ name = newValue;                                    \
 @"openvpnAllowsDynamicChallengeRegardlessOfAuthRetrySetting",	\
 @"tryToLoadKextsOnThisVersionOfMacOS",    \
 @"doNotDisconnectForCertificateProblems", \
+@"disconnectOnScreenLockAndDoNotReconnect", /* Disconnect all configurations when the screen locks; do not reconnect on unlock or on wake from sleep */ \
 \
 @"disableAdvancedButton",	\
 @"disableCheckNowButton",	\
@@ -1147,6 +1148,7 @@ name = newValue;                                    \
 @"updateUnsigned",	\
 @"userAgreementVersionAgreedTo",	\
 @"useShadowConfigurationFiles",	\
+@"useClassicInterface", /* Use the classic (AppKit) windows instead of the SwiftUI interface */	\
 ]
 
 #define CONFIGURATIONS_PREFERENCES_NSARRAY @[ \

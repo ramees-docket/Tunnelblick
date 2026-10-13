@@ -780,6 +780,16 @@ TBSYNTHESIZE_OBJECT(retain, NSDate       *, lastCheckNow,              setLastCh
                                                                 name: @"com.apple.logoutContinued"
                                                               object: nil];
 
+        // Screen lock/unlock (used by the 'disconnectOnScreenLockAndDoNotReconnect' preference)
+        [[NSDistributedNotificationCenter defaultCenter] addObserver: self
+                                                            selector: @selector(screenIsLockedHandler:)
+                                                                name: @"com.apple.screenIsLocked"
+                                                              object: nil];
+        [[NSDistributedNotificationCenter defaultCenter] addObserver: self
+                                                            selector: @selector(screenIsUnlockedHandler:)
+                                                                name: @"com.apple.screenIsUnlocked"
+                                                              object: nil];
+
 
         [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: self
                                                                selector: @selector(willGoToSleepHandler:)
@@ -3207,6 +3217,9 @@ unlockAndReturn:
 
     BOOL disconnectingAll = TRUE; // Assume we disconnect everything
 
+    // If the user wants to stay disconnected after a screen lock or sleep, never queue reconnections for wakeup
+    BOOL stayDisconnected = [gTbDefaults boolForKey: @"disconnectOnScreenLockAndDoNotReconnect"];
+
     // Add connections to the DISCONNECT list if they ARE NOT disconnected and should DISCONNECT when the computer GOES TO SLEEP
     // Add connections to the  RECONNECT list if they WILL BE disconnected and should RECONNECT  when the computer WAKES UP
     VPNConnection * connection;
@@ -3219,7 +3232,8 @@ unlockAndReturn:
             if (  ! [gTbDefaults boolForKey: keepConnectedForSleepKey]  ) {
                 [disconnectList addObject: connection];
                 NSString * doNotReconnectAfterSleepKey = [[connection displayName] stringByAppendingString: @"-doNotReconnectOnWakeFromSleep"];
-                if (  ! [gTbDefaults boolForKey: doNotReconnectAfterSleepKey]  ) {
+                if (   ( ! stayDisconnected )
+                    && ( ! [gTbDefaults boolForKey: doNotReconnectAfterSleepKey] )  ) {
                     [connectionsToRestoreOnWakeup addObject: connection];
                 }
             } else {
@@ -7135,7 +7149,10 @@ void terminateBecauseOfBadConfiguration(void)
 	while (  (connection = [e nextObject])  ) {
         NSString * name = [connection displayName];
         NSString * key  = [name stringByAppendingString: @"-doNotReconnectOnWakeFromSleep"];
-        if (  ! [gTbDefaults boolForKey: key]  ) {
+        if (  [gTbDefaults boolForKey: @"disconnectOnScreenLockAndDoNotReconnect"]  ) {
+            TBLog(@"DB-SW", @"finishWakingUpFromSleep: Not restoring connection %@ because of 'disconnectOnScreenLockAndDoNotReconnect' preference", name)
+            [connection addToLog: @"Woke up from sleep. Not attempting to re-establish connection because of the 'disconnect when the screen locks' setting..."];
+        } else if (  ! [gTbDefaults boolForKey: key]  ) {
 			TBLog(@"DB-SW", @"finishWakingUpFromSleep: Attempting to connect %@", name)
             [connection addToLog: @"Woke up from sleep. Attempting to re-establish connection..."];
             [connection connect:self userKnows: YES];
@@ -7240,6 +7257,60 @@ void terminateBecauseOfBadConfiguration(void)
 			TBLog(@"DB-SW", @"wokeUpFromSleep: exiting; waitAfterSleepTimerHandler: is queued to execute in %lu seconds", (unsigned long)sleepTime);
         }
     }
+}
+
+-(void)screenIsLockedHandler: (NSNotification *) n
+{
+    (void) n;
+
+    [self performSelectorOnMainThread: @selector(screenIsLocked) withObject: nil waitUntilDone: NO];
+}
+
+-(void)screenIsLocked
+{
+    // Invoked on the main thread when macOS posts "com.apple.screenIsLocked".
+    //
+    // If the 'disconnectOnScreenLockAndDoNotReconnect' preference is set, disconnect all connected configurations
+    // as if the user had asked for the disconnection, so nothing (-keepConnected, wake from sleep, etc.) reconnects them.
+
+    if (  ! [gTbDefaults boolForKey: @"disconnectOnScreenLockAndDoNotReconnect"]  ) {
+        TBLog(@"DB-SW", @"screenIsLocked: ignored because the 'disconnectOnScreenLockAndDoNotReconnect' preference is not set");
+        return;
+    }
+
+    if (   gShuttingDownOrRestartingComputer
+        || gShuttingDownWorkspace  ) {
+        TBLog(@"DB-SW", @"screenIsLocked: ignored because computer is shutting down or restarting or the workspace is shutting down");
+        return;
+    }
+
+    if (  gSleepWakeState != noSleepState  ) {
+        TBLog(@"DB-SW", @"screenIsLocked: ignored because gSleepWakeState is %ld; the sleep/wake code handles disconnections", (long) gSleepWakeState);
+        return;
+    }
+
+    if (  gActiveInactiveState != active  ) {
+        TBLog(@"DB-SW", @"screenIsLocked: ignored because gActiveInactiveState is %ld; the fast user switching code handles disconnections", (long) gActiveInactiveState);
+        return;
+    }
+
+    VPNConnection * connection;
+    NSEnumerator * e = [[self myVPNConnectionDictionary] objectEnumerator];
+    while (  (connection = [e nextObject])  ) {
+        if (  ! [connection isDisconnected]  ) {
+            TBLog(@"DB-SW", @"screenIsLocked: starting disconnection of %@; will not reconnect when the screen is unlocked", [connection displayName]);
+            [connection addToLog: NSLocalizedString(@"Disconnecting because the screen was locked", @"Log line")];
+            [connection startDisconnectingUserKnows: @YES];
+        }
+    }
+}
+
+-(void)screenIsUnlockedHandler: (NSNotification *) n
+{
+    (void) n;
+
+    // Nothing to do: configurations disconnected because the screen was locked are NOT reconnected automatically.
+    TBLog(@"DB-SW", @"screenIsUnlockedHandler: screen was unlocked; not reconnecting any configurations");
 }
 
 -(void)didBecomeInactiveUserHandler: (NSNotification *) n
